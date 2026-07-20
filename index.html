@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ward Talk Scheduler</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1c2530;
+    --text-dim: #5b6672;
+    --border: #e2e5ea;
+    --accent: #2f6fed;
+    --accent-dim: #eaf0fe;
+    --red-bg: #fdeceb;
+    --red-text: #b3261e;
+    --red-dot: #d93025;
+    --green-bg: #e8f6ec;
+    --green-text: #1e7d3a;
+    --green-dot: #1e8e3e;
+    --shadow: 0 1px 2px rgba(20, 30, 45, 0.06), 0 1px 8px rgba(20, 30, 45, 0.04);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161c;
+      --card: #1a1f27;
+      --text: #e7ebf0;
+      --text-dim: #98a3b0;
+      --border: #2a313b;
+      --accent: #6d97f7;
+      --accent-dim: #1f2a42;
+      --red-bg: #3a1f1e;
+      --red-text: #ff8f87;
+      --red-dot: #ff6b61;
+      --green-bg: #1c3324;
+      --green-text: #7fe3a0;
+      --green-dot: #46c76e;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 8px rgba(0, 0, 0, 0.24);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161c; --card: #1a1f27; --text: #e7ebf0; --text-dim: #98a3b0; --border: #2a313b;
+    --accent: #6d97f7; --accent-dim: #1f2a42; --red-bg: #3a1f1e; --red-text: #ff8f87; --red-dot: #ff6b61;
+    --green-bg: #1c3324; --green-text: #7fe3a0; --green-dot: #46c76e;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 8px rgba(0,0,0,0.24);
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1c2530; --text-dim: #5b6672; --border: #e2e5ea;
+    --accent: #2f6fed; --accent-dim: #eaf0fe; --red-bg: #fdeceb; --red-text: #b3261e; --red-dot: #d93025;
+    --green-bg: #e8f6ec; --green-text: #1e7d3a; --green-dot: #1e8e3e;
+    --shadow: 0 1px 2px rgba(20,30,45,0.06), 0 1px 8px rgba(20,30,45,0.04);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 28px 20px 60px; }
+  header.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .subtitle { color: var(--text-dim); font-size: 0.92rem; margin: 0; }
+  button {
+    font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); padding: 8px 14px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { opacity: 0.92; }
+  button.subtle { border: none; background: transparent; color: var(--text-dim); padding: 6px 8px; }
+  button.subtle:hover { color: var(--accent); }
+  input[type=text], input[type=date], select {
+    font: inherit; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text);
+  }
+  input:focus, select:focus, button:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px; min-width: 130px; box-shadow: var(--shadow);
+  }
+  .stat-card .num { font-size: 1.4rem; font-weight: 650; line-height: 1.1; }
+  .stat-card .label { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+  .controls { padding: 14px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--border); }
+  .controls input[type=text] { flex: 1 1 220px; min-width: 160px; }
+  .controls .spacer { flex: 1 1 auto; }
+  .count-line { padding: 10px 16px; font-size: 0.82rem; color: var(--text-dim); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-dim); padding: 10px 16px; border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 0.92rem; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--accent-dim); }
+  .member-name { font-weight: 550; }
+  .talk-count { color: var(--text-dim); font-size: 0.82rem; }
+
+  .tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+  .tag .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .tag.red { background: var(--red-bg); color: var(--red-text); }
+  .tag.red .dot { background: var(--red-dot); }
+  .tag.green { background: var(--green-bg); color: var(--green-text); }
+  .tag.green .dot { background: var(--green-dot); }
+
+  .row-actions { text-align: right; white-space: nowrap; }
+
+  .empty-state { padding: 40px 16px; text-align: center; color: var(--text-dim); }
+
+  .pagination { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 14px 16px; flex-wrap: wrap; }
+  .pagination button.page-num { min-width: 36px; padding: 6px 10px; }
+  .pagination button.page-num.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .pagination .ellipsis { color: var(--text-dim); padding: 0 4px; }
+
+  .top-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  dialog { border: none; border-radius: var(--radius); padding: 0; background: var(--card); color: var(--text); box-shadow: var(--shadow); max-width: 560px; width: 92vw; }
+  dialog::backdrop { background: rgba(10, 14, 20, 0.5); }
+  .dialog-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .dialog-head h2 { font-size: 1.05rem; margin: 0; }
+  .dialog-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; max-height: 65vh; overflow-y: auto; }
+  .dialog-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 0.8rem; color: var(--text-dim); font-weight: 600; }
+  .field .hint { font-size: 0.76rem; color: var(--text-dim); }
+  .source-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .source-row input { width: 100%; }
+  .sync-status { font-size: 0.82rem; color: var(--text-dim); min-height: 1.2em; }
+  .sync-status.error { color: var(--red-text); }
+  .sync-status.ok { color: var(--green-text); }
+  .autocomplete { position: relative; }
+  .autocomplete-list {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card);
+    border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); z-index: 20;
+    max-height: 220px; overflow-y: auto; display: none;
+  }
+  .autocomplete-list.open { display: block; }
+  .autocomplete-list div { padding: 8px 12px; cursor: pointer; font-size: 0.9rem; }
+  .autocomplete-list div:hover, .autocomplete-list div.active { background: var(--accent-dim); }
+  .unmatched-box { font-size: 0.82rem; color: var(--text-dim); background: var(--accent-dim); border-radius: 8px; padding: 10px 12px; max-height: 140px; overflow-y: auto; }
+  .badge-small { font-size: 0.72rem; background: var(--accent-dim); color: var(--accent); padding: 2px 7px; border-radius: 999px; font-weight: 600; }
+  footer.page-foot { margin-top: 22px; font-size: 0.78rem; color: var(--text-dim); text-align: center; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page-head">
+    <div>
+      <h1>Ward Talk Scheduler</h1>
+      <p class="subtitle">Who's spoken recently, and who's due for a Sunday talk.</p>
+    </div>
+    <div class="top-actions">
+      <button id="quickAddBtn">+ Record a talk</button>
+      <button id="settingsBtn">Sync settings</button>
+    </div>
+  </header>
+
+  <div class="stats" id="statsRow"></div>
+
+  <div class="card">
+    <div class="controls">
+      <input type="text" id="searchInput" placeholder="Search members by name...">
+      <select id="filterSelect">
+        <option value="all">All members</option>
+        <option value="recent">Spoke in last 12 months</option>
+        <option value="due">Due (12+ months or never)</option>
+        <option value="never">Never given a talk</option>
+      </select>
+      <div class="spacer"></div>
+      <select id="pageSizeSelect">
+        <option value="25">25 / page</option>
+        <option value="50">50 / page</option>
+        <option value="100">100 / page</option>
+      </select>
+    </div>
+    <div class="count-line">
+      <span id="countLine"></span>
+      <span id="syncLine"></span>
+    </div>
+    <div id="tableHolder"></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <footer class="page-foot">
+    Data seeded from the ward's meeting schedule. Configure a live Google Sheet sync under "Sync settings" to keep this current.
+  </footer>
+</div>
+
+<dialog id="quickAddDialog">
+  <div class="dialog-head">
+    <h2>Record a talk</h2>
+    <button class="subtle" data-close="quickAddDialog">&times;</button>
+  </div>
+  <div class="dialog-body">
+    <div class="field autocomplete">
+      <label for="memberSearchInput">Member</label>
+      <input type="text" id="memberSearchInput" placeholder="Start typing a name..." autocomplete="off">
+      <div class="autocomplete-list" id="memberSuggestions"></div>
+    </div>
+    <div class="field">
+      <label for="talkDateInput">Date spoken</label>
+      <input type="date" id="talkDateInput">
+    </div>
+    <p class="hint">This is saved in this browser only. To share it with the other leaders, add the same entry to the ward Google Sheet, or use "Sync settings" once the sheet is connected.</p>
+  </div>
+  <div class="dialog-foot">
+    <button data-close="quickAddDialog">Cancel</button>
+    <button class="primary" id="saveTalkBtn">Save talk</button>
+  </div>
+</dialog>
+
+<dialog id="settingsDialog">
+  <div class="dialog-head">
+    <h2>Google Sheet sync</h2>
+    <button class="subtle" data-close="settingsDialog">&times;</button>
+  </div>
+  <div class="dialog-body">
+    <p class="hint">
+      In Google Sheets: <strong>File &rarr; Share &rarr; Publish to web</strong>, pick the tab, choose <strong>CSV</strong>, and paste the link below.
+      Add one source per year/tab. Columns are 1-indexed (A=1, H=8, I=9, J=10, K=11&hellip;).
+    </p>
+    <div id="sourceRows"></div>
+    <button id="addSourceBtn">+ Add source</button>
+    <div class="field">
+      <label>&nbsp;</label>
+      <button class="primary" id="syncNowBtn">Sync now</button>
+    </div>
+    <div class="sync-status" id="syncStatus"></div>
+    <div id="unmatchedWrap" style="display:none">
+      <label style="font-size:0.8rem;color:var(--text-dim);font-weight:600;">Unrecognized speaker names from last sync</label>
+      <div class="unmatched-box" id="unmatchedBox"></div>
+    </div>
+  </div>
+  <div class="dialog-foot">
+    <button data-close="settingsDialog">Close</button>
+  </div>
+</dialog>
+
+<template id="sourceRowTpl">
+  <div class="source-row">
+    <input type="text" class="src-url" placeholder="Published CSV URL">
+    <input type="text" class="src-date-col" placeholder="Date col" value="1">
+    <input type="text" class="src-speaker-cols" placeholder="Speaker cols (e.g. 9,11)">
+    <button class="subtle remove-source" title="Remove">&times;</button>
+  </div>
+</template>
+
+<script>
+/* ---------- Seed data ---------- */
+const MEMBERS = ["Abbigail Slade","Abby Hammond","Abigail Christensen","Adam Dubois","Adeline Ember Sled","Adrianne Candice Balch","Aiden Oliver","Aiyana Devereaux","Alan Roy Darowski","Aleece Morriss","Alex Hernandez","Alex Rwankuba","Alexander James Tilton","Alexiss Harward","Alfred Scott Dodini","Alissa Anne Herfel","Allie Ray Wilson","Allison Fannin","Allysa Salehian","Amber Christine Sherman","Ammon Curtis","Amy Naylor","Andrea Brown","Andrea Olga DeMita","Andrew Steven Darowski","Andrew LaVoie","Andy Pinilla","Anna Moody","Anne Audino","Anthony Cassiero","Anthony McMillan","Anzie Mae Brown","Archy Kougen Sherman","Aria Olianna Perez","Ashtyn Davies","Austin Kay","Ava May Busi","Ava Lynn McMillan","Bailey Reeder","Beckham Dean Kay","Ben Curtis","Ben Erland","Ben Giles","Ben Jenks","Ben Smith","Ben Wall","Benjamin Daley","Benjamin Hepworth","Benjamin Mycal Pearson","Benjamin Peterson","Benjamin Reid","Bennett Blanthorn","Bentley Calvin Robinson","Bethany Kennedy","Blaine Larsen","Blythe Berlyn Madrigal","Boston Justis Brown","Boston Burt","Braden Kerr","Braeden Dix","Brandon Bean","Brandon Engles","Brandon Rosier","Braxton Ray Thomas Threlfall","Brayden Higginson","Breana Gibbs","Breighlin Alyscha Johanson","Brendan Bandoli","Brian Jones","Bridger Kyle Burt","Brigham Harang Ahn","Brinley Mae McMillan","Brinllee Limb","Brooklyn Nelson","Brooks Thomas Holman","Brooks Houghton","BryAnna Faith Rivera","Bryson Linnell","Bryson Van Houten","Cade Wright","Caden Olson","Caleb Isiah Perez","Calvin Keith Haws","Camille Peterson","Camylle Eliza Oliver","Candice Fehlberg","Carl Hackford","Carla Hansen","Carlee Smith","Carley Malina Darowski","Carly Newsom","Caroline Angle","Carson Robert Staley","Carter Paul Reid","Carter Russ","Casen Van Houten","Casey Jones","Caysen Wright","Channing Blanthorn","Charles Anthony Keele","Charles Unice","Charlotte Hotard","Chase Edward Madrigal","Chase Thomas Sled","Chloe Renee Reid","Christian Rey Nava","Christiana Warr","Christopher Anthony John McMillan","Cleo McKai Jo Unice","Colter Leon Isaacson","Colton Pearson","Cooper Devan Durrant","Cora Ann Walker","Courtney Culver","Cruz Schempp","D'Aaron Gonzalez","Daisy Kimberly Jenks","Daisy Lamb","Daken Broadhead","Dakota Swensen","Dakotah Hoogland","Dallin Day","Dallin Newmaker","Dalton Beck","Dan Duncan","Daniel Pope","Danielle Davis","Danielle Neil","David Dodini","David Dudley","David Eastley","David Munasinghe","David Neil","Dawn Porter","Deanna Wardle","Delaine Peterson","Denise Harper","Derek Rudd","Devan Durrant","Diego Ovidio Alvarenga Rosa","DJ Sorensen","Drew Pearson","Dylan Salehian","Easton Wright","Ed Porter","Eddie Olpin","Eden Isaacson","Elijah Ezra Oliver","Elijah Jacob Shumway","Eliott Russ","Elizabeth Porter","Ella Noel Salehian","Elliana Renee Staley","Elsie Pulsifer","Emily Ruth Fotheringham","Emily Giles","Emily Naylor","Emily Pope","Emily Van Houten","Emma Checketts","Emma Elizabeth Golding","Emma Higginson","Enoch Golding","Eric Keele","Eric Richard Naylor","Ethan Ashby","Ethan Call","Ethan Slade","Eva Melton","Evette Taylor Higginson","Evren Wrathall Hepworth","Ezra Ames Salehian","Fenrys Scottie Fehlberg","Fred Fleming","Freya Lynn Dodini","Gabriel Christensen","Gabriel Stark","Gage Jensen","Gage William Pulsifer","Garrett Isaacson","Gavin Lee Tilton","Genevieve Ann Jones","George Elliott","George Donald Pont","Georgiana Jennifer Madrigal","Gina Marie Bacalski","Gordon Pont","Grant Goodwin","Graydon Woodlief","Gregory Haycock","Gwang Woong Ahn","Gwen Elizabeth Wood","Hailey Joelle Towery","Haley Jolie","Haley Smalley","Hannah Evans","Hannah Fife","Hannah Renee Walker","Harmony Rose Van Houten","Harper Shaw","Harrison Reed Pont","Hayden Keith Haws","Hayden Noyes","Hayes Redford Brown","Hayes Towery","Haylee Jane Kersh","Hazel Joelle Towery","Houston Brown","Hudson Samuel Walker","Hunter Angle","Hunter Evans","Hunter Quinn Hannemann","Ian Devereaux","Ida Soyeong Ahn","Isaac Davies","Isabel Pho","Ivan Graham Darowski","Ivie June Larsen","Jace Gibbs","Jacie Clarke","Jack Edward Madrigal","Jacob Vanderheyden","Jaden Terry","Jakob Taylor","James Ephraim Clarke","James Andrew DeMita","James K Young","Janae Ann Sled","Jane Warr","Jared Gonzalez","Jason Lee Anderson","Jason Steven Blanthorn","Jason Garner","Jason Kirk Oliver","Jasper Smith","Jay Bacalski","Jayden Hoogland","Jayden Wilson","Jennilyn Wright","Jensen Jade Boswell","Jentri Esplin","Jeremy Erland","Jessalin Lilly Webb","Jessica Lee Ames","Jessica Daley","Jessica DeAnn Jones","Jessica Lewis","Jessica Walker","Jett Hoogland","John Busi","John Bart Vera","Johnny Ahn","Jon Andrew Dubois","Jonah Anderson","Jordan Naylor","Jordan Reid","Jordie Fuller","Jordyn Denver","Joseph Fletcher","Joseph Abraham Maynez Hernandez","Josh Kersh","Josh Sherman","Joshua Buckley","Josiah Balch","Juan Carlos Rufasto","Justin Reel","Justis Brown","Jyllian Unice","Kade Kurt Frischknecht","Kai Henry Hoogland","Kailey Kay","Karissa Cassiero","Karter Koy Dibb","Kate Warr","Katherine Lyne Erland","Katherine Diane Fotheringham","Katherine Anne Hall","Kathryn Keele","Kathryn Elisabeth Stark","Katie Blomquist","Katie Hotard","Kaydawn Mecham","Kayla Marie Pont","Kayli Noel Newmaker","Kaylie Diane Lowe","Keaton O'Connor","Keira Threlfall","Kelley Allred","Kellie Ann Haws","Kelly Golding","Kenbree Evans","Kendalyn Evans","Kenslee Annette Threlfall","Kent Hall","Keona Hannemann","Keoni Shaw","Kerry Jean Nyavor","Kestra Marie Darowski","Kian Golding","Kian Eugene Larsen","Kinlea Olson","Kirsten Ivy Page Peterson","Koda Russell Olson","Kory Peterson","Koy Dibb","Krista Danielle Pulsifer","Kyle Abbott","Kyle Warr","Kylee Elizabeth Jones","Kylee Schmitt","Kylee Rose Threlfall","Kylee Wunder","LaDawn McPherson","Laikin Alexis Erland","Lander Jase Erland","Larry Brent Robinson","Laudy Jane Gonzalez","Laura Taylor","Lauren Elizabeth Cranford","Lauren Diann Pinson","Leilani Ortega","Lennon Jeremy Erland","Leo James Giles","Leo Kenji Sherman","Lettie Ann Cassiero","Levi Thorpe","Liam Pierce","Liam Marco Rivera","Liam Casen Van Houten","Lillie Mae Towery","Lincoln Russell Burrows","Linsey Tullis","Lionel Palmieri","Lochlan Keith Erland","Logan Keaton Cassiero","Logan William Hepworth","Logan Kenneth Stites","Lola Cindy Jenks","Lori Ann Kersh","Lucas Joshua Buckley","Lucas Daniel Cassiero","Luna Rose Smith","Lynda Maritza Martinez Fajardo","Mabel Keele","Madeline Larsen","Madison Yvonne Blonquist","Maegen Taylor McMillan","Mairghread LaVoie","Makayla Simons","Makenzie Madrigal","Mallery Noyes","Mallory Reel","Mandy Shaw","Marc Ogden","Margaret Wight","Mark Hegewald","Matt Smith","Matthew Shallenberger","Matthew Ross Walker","McKay Orr","McKay Wilson Smith","McKenna Blanthorn","McKenzie Kae Gregory","Mea Rachael Harris","Meaghen Balena","Megan Heaps","Megan Nicole Kerr","Megan Stites","Melaina Holman","Melinda Naylor","Melinda Thorpe","Mia Dibb","Mia Grace Golding","Mikaila Curtis","Mike Burgoyne","Miles Hammond","Milo Kemper Brown","Mindi Vera Gray","Misha Marie Bean","Moly R. Yim","Morgan Elizabeth Luedtke","Morgan Taylor Palmieri","Morgan Sorensen","Mumford Gifford Madrigal","Myla Milagros Kersh","Naomi Rae Linnell","Natalie Mccutcheon","Nathan Palmieri","Nathan Wells Peterson","Nathan Shumway","Nathan Webb","Nathaniel Evans","Nelson Alexander Pierce","Nicholas Bishop","Nicholas Shrum","Nicholas Wight","Noah Golding","Noelle Elise Ahn","Oakley Gene' Hegewald","Oliver Callum Abbott","Oliver Hudson Gray","Olivia Dix","Olivia Caroline Pearson","Olivia Rogers","Owen Herb Van Houten","Ozzy Lee Gregory","Paige Ashby","Pam Morriss","Paul Fotheringham","Paul Hanson","Paxton Patey","Peggy Evans","Percy Samiuela Harris","Phillip Mason","Preston Bledsoe","Quincy Kae Gregory","Rachael Berry","Rachel Gonzalez","Raya Dee Gonzales","Reagan Buckley","Rebecca Erickson","Regan Porter Ross","Reggie Ray Esplin","Reverie Quinn Devereaux","Rexford James Fotheringham","Rhett Matthew Jones","Richard Holling III Lowe","Riley Paris Broadhead","Riley Holman","Ririe McKay Smith","Rowyn Grant Hepworth","Russell Day","Ryan Boswell","Ryan Christman","Ryan Cranford","Ryan Keith Larsen","Rykan Peterson","Ryker Howard Larsen","Rylee Bledsoe","Sager Calvin Walker","Sam Tilton","Samuel John Fotheringham","Samuel Tilton","Samuel Walker","Sara Viviana Cardenas Bishop","Sarah Fredrick","Sarah Lewis","Saren Busi","Sariah Eastley","Savanna Mason","Sawyer Hayes Towery","Scott Hotard","Scott David Kerr","Sean Noah","Shelby Lin Jenks","Shelley Tilton","Skye Kimberly Sherman","Sophi Pearson","Sophia Fife","Sophia May Gonzalez","Sophie Kaylyn Wright","Stehle Shaw","Stephen Fredrick","Stephen Tuttle","Supi Takau","Susan Amanda Pearson","Tanner Aiono","Tanner Wood","Tara Leann Alba","Tate Dale Dibb","Taylor Boswell","Taylor Dean","Taylor Mason","Teak Balena","Tess Elliott","Tessa Lynn Dodini","Theodore James Bean","Thomas Christensen","Tianna Maria Hepworth","Toby Schmitt","Todd Morriss","Travis Hunter Ames","Trey Esplin","Trinity Berry","Tristan Oliver","Trynitee Behm","Tyler Gregory","Tyler Russ","Tyler Tilton","Tyler Walke","Tyrell Cowles","Valkyrie Rachelle Fehlberg","Veronika Carmen Brown","Vince Michael Keiji Sherman","Walter Bernard Fotheringham","Wells Aaron Davies","Wendy Free","Wes Larson","Wesley Grey Durrant","Weston Simons","Whitney Faye Curtis","William Towery","Willow Brown","Wilson Lehi Darowski","Win Jeanfreau","Winter James Brown","Zack Jolie","Zella Mae Maria Pulsifer","Zoe Ellen Smith","Zoey Wright"];
+const SEED_TALKS = [{"date":"2025-01-12","name":"D'Aaron Gonzalez"},{"date":"2025-01-26","name":"Ethan Slade"},{"date":"2025-01-26","name":"Abbigail Slade"},{"date":"2025-03-09","name":"Gwang Woong Ahn"},{"date":"2025-03-16","name":"Sarah Lewis"},{"date":"2025-03-23","name":"Josh Sherman"},{"date":"2025-03-30","name":"McKenna Blanthorn"},{"date":"2025-03-30","name":"Taylor Boswell"},{"date":"2025-03-30","name":"Ben Curtis"},{"date":"2025-05-11","name":"Rexford James Fotheringham"},{"date":"2025-05-11","name":"Ryan Boswell"},{"date":"2025-05-11","name":"Stephen Fredrick"},{"date":"2025-05-25","name":"Trinity Berry"},{"date":"2025-05-25","name":"McKenzie Kae Gregory"},{"date":"2025-06-15","name":"Mia Dibb"},{"date":"2025-06-15","name":"Samuel Walker"},{"date":"2025-06-22","name":"Hailey Joelle Towery"},{"date":"2025-07-13","name":"Paul Fotheringham"},{"date":"2025-07-20","name":"Allysa Salehian"},{"date":"2025-07-20","name":"Sam Tilton"},{"date":"2025-07-27","name":"Tanner Aiono"},{"date":"2025-08-10","name":"Hannah Evans"},{"date":"2025-08-10","name":"Hunter Evans"},{"date":"2025-08-24","name":"Anzie Mae Brown"},{"date":"2025-08-24","name":"Jordan Reid"},{"date":"2025-08-31","name":"Rachel Gonzalez"},{"date":"2025-08-31","name":"Gage William Pulsifer"},{"date":"2025-09-14","name":"Tyler Russ"},{"date":"2025-09-14","name":"Kaydawn Mecham"},{"date":"2025-09-21","name":"Hannah Renee Walker"},{"date":"2025-09-28","name":"Madison Yvonne Blonquist"},{"date":"2025-09-28","name":"Nicholas Shrum"},{"date":"2025-10-19","name":"Margaret Wight"},{"date":"2025-11-09","name":"Nicholas Shrum"},{"date":"2025-11-09","name":"Jason Steven Blanthorn"},{"date":"2025-11-16","name":"Haley Jolie"},{"date":"2025-11-23","name":"Justin Reel"},{"date":"2025-12-28","name":"Kaydawn Mecham"},{"date":"2026-01-11","name":"Saren Busi"},{"date":"2026-02-08","name":"Kathryn Elisabeth Stark"},{"date":"2026-02-08","name":"Benjamin Reid"},{"date":"2026-02-22","name":"Danielle Neil"},{"date":"2026-02-22","name":"David Neil"},{"date":"2026-03-08","name":"Jayden Hoogland"},{"date":"2026-03-08","name":"Tyler Gregory"},{"date":"2026-03-15","name":"Katie Hotard"},{"date":"2026-03-22","name":"Daniel Pope"},{"date":"2026-04-19","name":"Makenzie Madrigal"},{"date":"2026-04-19","name":"Chase Edward Madrigal"},{"date":"2026-05-17","name":"Kent Hall"},{"date":"2026-05-24","name":"Gabriel Stark"},{"date":"2026-05-24","name":"Morgan Elizabeth Luedtke"},{"date":"2026-05-31","name":"Benjamin Daley"},{"date":"2026-05-31","name":"Jessica Daley"},{"date":"2026-07-12","name":"Jessica Daley"},{"date":"2026-07-12","name":"Andrea Brown"},{"date":"2026-07-19","name":"Gage William Pulsifer"}];
+
+/* ---------- Storage helpers ---------- */
+const LS_MANUAL_TALKS = "talkScheduler.manualTalks";
+const LS_SYNCED_TALKS = "talkScheduler.syncedTalks";
+const LS_SOURCES = "talkScheduler.sources";
+const LS_LAST_SYNC = "talkScheduler.lastSync";
+
+function loadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+function saveJSON(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+let manualTalks = loadJSON(LS_MANUAL_TALKS, []);
+let syncedTalks = loadJSON(LS_SYNCED_TALKS, []);
+let sources = loadJSON(LS_SOURCES, []);
+
+/* ---------- Name matching (shared by CSV sync) ---------- */
+function normName(s) {
+  return s
+    .normalize("NFKD").replace(/[̀-ͯ]/g, "")
+    .replace(/['".]/g, "")
+    .replace(/[^a-zA-Z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+function nameTokens(s) {
+  const n = normName(s);
+  return n ? new Set(n.split(" ")) : new Set();
+}
+const MEMBER_INDEX = (() => {
+  const map = new Map();
+  for (const m of MEMBERS) {
+    const n = normName(m);
+    if (!map.has(n)) map.set(n, m);
+  }
+  return map;
+})();
+const NON_NAME_PHRASES = new Set([
+  "testimonies", "testimony meeting", "general conference", "primary program",
+  "stake conference", "ward conference", "musical testimony", "gc testimony",
+  "easter sunday", "mothers day", "fathers day", "n a", "youth theme", "",
+]);
+function matchMember(rawName) {
+  const n = normName(rawName);
+  if (!n || NON_NAME_PHRASES.has(n)) return null;
+  if (MEMBER_INDEX.has(n)) return MEMBER_INDEX.get(n);
+  const rt = nameTokens(rawName);
+  if (rt.size < 2) return null;
+  for (const [mn, orig] of MEMBER_INDEX) {
+    const mt = new Set(mn.split(" "));
+    if (mt.size === rt.size && [...rt].every((t) => mt.has(t))) return orig;
+  }
+  const lastToken = rawName.trim().split(/\s+/).pop().toLowerCase();
+  const candidates = [];
+  for (const [mn, orig] of MEMBER_INDEX) {
+    const mt = new Set(mn.split(" "));
+    let subset = true;
+    for (const t of rt) if (!mt.has(t)) { subset = false; break; }
+    if (subset && mt.has(lastToken)) candidates.push(orig);
+  }
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+const LABELS_RE = /(Youth Speaker|HC Speaker|GC Testimony|Speaker)\s*:/gi;
+function extractNames(cell) {
+  cell = (cell || "").trim();
+  if (!cell || cell === "—" || cell === "-" || cell.toUpperCase() === "N/A") return [];
+  cell = cell.replace(/\b(EASTER SUNDAY|MOTHER'S DAY|FATHER'S DAY|WARD CONFERENCE|GENERAL CONFERENCE|STAKE CONFERENCE)\b/gi, " ");
+
+  let segments = [];
+  const hasLabel = /(Youth Speaker|HC Speaker|GC Testimony|Speaker)\s*:/i.test(cell);
+  if (hasLabel) {
+    const parts = cell.split(LABELS_RE);
+    for (let i = 1; i < parts.length; i += 2) {
+      let text = parts[i + 1] || "";
+      text = text.split(/\bTopic\s*:|\bSong\s*:/i)[0];
+      segments.push(text.trim());
+    }
+  } else {
+    segments.push(cell.split(/\bTopic\s*:|\bSong\s*:/i)[0].trim());
+  }
+
+  const names = [];
+  for (let seg of segments) {
+    seg = seg.replace(/\([^)]*\)/g, "").trim();
+    seg = seg.replace(/^(Bishop|President|Bro\.?|Brother|Sister|Elder)\s+/i, "").trim();
+    seg = seg.replace(/\s+(Topic|Song)\s*$/i, "").trim();
+    if (!seg) continue;
+    const n = normName(seg);
+    if (NON_NAME_PHRASES.has(n) || n.length < 3) continue;
+    names.push(seg);
+  }
+  return names;
+}
+
+const MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
+function parseLooseDate(s) {
+  const m = (s || "").trim().match(/(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/);
+  if (m) {
+    const mon = MONTHS[m[2].slice(0,3).toLowerCase()];
+    if (mon) return `${m[3]}-${String(mon).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;
+  }
+  const d = new Date(s);
+  if (!isNaN(d)) return d.toISOString().slice(0,10);
+  return null;
+}
+
+/* ---------- Minimal CSV parser (handles quoted fields) ---------- */
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+      else if (c === "\r") { /* skip */ }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((c) => c.trim() !== ""));
+}
+
+function parseSourceCSV(csvText, dateCol, speakerCols) {
+  const rows = parseCSV(csvText);
+  const talks = [];
+  const unmatched = new Set();
+  for (const r of rows) {
+    const dateRaw = r[dateCol - 1];
+    const date = parseLooseDate(dateRaw);
+    if (!date) continue;
+    for (const col of speakerCols) {
+      const cell = r[col - 1];
+      for (const raw of extractNames(cell)) {
+        const member = matchMember(raw);
+        if (member) talks.push({ date, name: member });
+        else unmatched.add(raw);
+      }
+    }
+  }
+  return { talks, unmatched: [...unmatched] };
+}
+
+/* ---------- Data assembly ---------- */
+function dedupeTalks(list) {
+  const seen = new Set();
+  const out = [];
+  for (const t of list) {
+    const key = t.date + "|" + t.name;
+    if (!seen.has(key)) { seen.add(key); out.push(t); }
+  }
+  return out;
+}
+function allTalks() {
+  return dedupeTalks([...SEED_TALKS, ...syncedTalks, ...manualTalks]);
+}
+
+function monthsBetween(dateStr, now) {
+  const d = new Date(dateStr + "T00:00:00");
+  let months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+  if (now.getDate() < d.getDate()) months -= 1;
+  return Math.max(0, months);
+}
+
+function buildMemberRows() {
+  const now = new Date();
+  const lastByMember = new Map();
+  const countByMember = new Map();
+  for (const t of allTalks()) {
+    countByMember.set(t.name, (countByMember.get(t.name) || 0) + 1);
+    const cur = lastByMember.get(t.name);
+    if (!cur || t.date > cur) lastByMember.set(t.name, t.date);
+  }
+  return MEMBERS.map((name) => {
+    const lastDate = lastByMember.get(name) || null;
+    const months = lastDate ? monthsBetween(lastDate, now) : null;
+    return {
+      name,
+      lastDate,
+      months,
+      count: countByMember.get(name) || 0,
+      status: lastDate === null || months >= 12 ? "green" : "red",
+    };
+  });
+}
+
+/* ---------- Rendering ---------- */
+const state = { search: "", filter: "all", page: 1, pageSize: 25 };
+
+function sortRows(rows) {
+  return rows.slice().sort((a, b) => {
+    if (a.lastDate && b.lastDate) return a.lastDate < b.lastDate ? 1 : -1;
+    if (a.lastDate && !b.lastDate) return -1;
+    if (!a.lastDate && b.lastDate) return 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function filterRows(rows) {
+  const q = state.search.trim().toLowerCase();
+  return rows.filter((r) => {
+    if (q && !r.name.toLowerCase().includes(q)) return false;
+    if (state.filter === "recent" && r.status !== "red") return false;
+    if (state.filter === "due" && r.status !== "green") return false;
+    if (state.filter === "never" && r.lastDate !== null) return false;
+    return true;
+  });
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+function monthsLabel(months) {
+  if (months === null) return "Never given a talk";
+  if (months === 0) return "This month";
+  if (months === 1) return "1 month ago";
+  return `${months} months ago`;
+}
+
+function render() {
+  const all = sortRows(buildMemberRows());
+  const filtered = filterRows(all);
+  renderStats(all);
+
+  const pageSize = state.pageSize;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if (state.page > totalPages) state.page = totalPages;
+  const start = (state.page - 1) * pageSize;
+  const pageRows = filtered.slice(start, start + pageSize);
+
+  document.getElementById("countLine").textContent =
+    filtered.length === 0 ? "No members match" :
+    `Showing ${start + 1}–${Math.min(start + pageSize, filtered.length)} of ${filtered.length} members`;
+
+  const holder = document.getElementById("tableHolder");
+  if (pageRows.length === 0) {
+    holder.innerHTML = `<div class="empty-state">No members match your search/filter.</div>`;
+  } else {
+    holder.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Name</th><th>Last talk</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${pageRows.map(rowHTML).join("")}
+        </tbody>
+      </table>`;
+  }
+  renderPagination(totalPages);
+  renderSyncLine();
+}
+
+function rowHTML(r) {
+  const tagClass = r.status === "red" ? "red" : "green";
+  const tagLabel = r.status === "red" ? "Spoke recently" : (r.lastDate ? "Due" : "Never spoken");
+  return `
+    <tr>
+      <td class="member-name">${escapeHTML(r.name)}</td>
+      <td>${formatDate(r.lastDate)}<div class="talk-count">${monthsLabel(r.months)}${r.count ? ` &middot; ${r.count} talk${r.count === 1 ? "" : "s"}` : ""}</div></td>
+      <td><span class="tag ${tagClass}"><span class="dot"></span>${tagLabel}</span></td>
+      <td class="row-actions"><button class="subtle record-btn" data-name="${escapeHTML(r.name)}">Record talk</button></td>
+    </tr>`;
+}
+
+function escapeHTML(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+function renderStats(all) {
+  const total = all.length;
+  const recent = all.filter((r) => r.status === "red").length;
+  const due = total - recent;
+  const never = all.filter((r) => r.lastDate === null).length;
+  document.getElementById("statsRow").innerHTML = [
+    ["Total members", total],
+    ["Spoke in last 12 mo", recent],
+    ["Due (12+ mo)", due],
+    ["Never given a talk", never],
+  ].map(([label, num]) => `
+    <div class="stat-card"><div class="num">${num}</div><div class="label">${label}</div></div>
+  `).join("");
+}
+
+function renderSyncLine() {
+  const last = localStorage.getItem(LS_LAST_SYNC);
+  document.getElementById("syncLine").textContent = last
+    ? `Last synced ${new Date(last).toLocaleString()}`
+    : "Not synced with a Google Sheet yet";
+}
+
+function renderPagination(totalPages) {
+  const el = document.getElementById("pagination");
+  if (totalPages <= 1) { el.innerHTML = ""; return; }
+  const cur = state.page;
+  let html = `<button ${cur === 1 ? "disabled" : ""} data-page="${cur - 1}">Prev</button>`;
+  const pages = new Set([1, totalPages, cur, cur - 1, cur + 1]);
+  let prev = null;
+  for (const p of [...pages].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b)) {
+    if (prev !== null && p - prev > 1) html += `<span class="ellipsis">&hellip;</span>`;
+    html += `<button class="page-num ${p === cur ? "active" : ""}" data-page="${p}">${p}</button>`;
+    prev = p;
+  }
+  html += `<button ${cur === totalPages ? "disabled" : ""} data-page="${cur + 1}">Next</button>`;
+  el.innerHTML = html;
+  el.querySelectorAll("button[data-page]").forEach((b) => {
+    b.addEventListener("click", () => { state.page = +b.dataset.page; render(); });
+  });
+}
+
+/* ---------- Event wiring ---------- */
+document.getElementById("searchInput").addEventListener("input", (e) => {
+  state.search = e.target.value; state.page = 1; render();
+});
+document.getElementById("filterSelect").addEventListener("change", (e) => {
+  state.filter = e.target.value; state.page = 1; render();
+});
+document.getElementById("pageSizeSelect").addEventListener("change", (e) => {
+  state.pageSize = +e.target.value; state.page = 1; render();
+});
+document.getElementById("tableHolder").addEventListener("click", (e) => {
+  const btn = e.target.closest(".record-btn");
+  if (!btn) return;
+  openQuickAdd(btn.dataset.name);
+});
+
+document.querySelectorAll("[data-close]").forEach((b) => {
+  b.addEventListener("click", () => document.getElementById(b.dataset.close).close());
+});
+
+/* Quick add dialog */
+const quickAddDialog = document.getElementById("quickAddDialog");
+const memberSearchInput = document.getElementById("memberSearchInput");
+const memberSuggestions = document.getElementById("memberSuggestions");
+const talkDateInput = document.getElementById("talkDateInput");
+let selectedMember = null;
+
+document.getElementById("quickAddBtn").addEventListener("click", () => openQuickAdd());
+
+function openQuickAdd(prefillName) {
+  selectedMember = prefillName || null;
+  memberSearchInput.value = prefillName || "";
+  talkDateInput.value = new Date().toISOString().slice(0, 10);
+  memberSuggestions.classList.remove("open");
+  quickAddDialog.showModal();
+  if (!prefillName) memberSearchInput.focus();
+}
+
+memberSearchInput.addEventListener("input", () => {
+  const q = memberSearchInput.value.trim().toLowerCase();
+  selectedMember = null;
+  if (!q) { memberSuggestions.classList.remove("open"); return; }
+  const matches = MEMBERS.filter((m) => m.toLowerCase().includes(q)).slice(0, 8);
+  if (matches.length === 0) { memberSuggestions.classList.remove("open"); return; }
+  memberSuggestions.innerHTML = matches.map((m) => `<div data-name="${escapeHTML(m)}">${escapeHTML(m)}</div>`).join("");
+  memberSuggestions.classList.add("open");
+});
+memberSuggestions.addEventListener("click", (e) => {
+  const div = e.target.closest("div[data-name]");
+  if (!div) return;
+  selectedMember = div.dataset.name;
+  memberSearchInput.value = selectedMember;
+  memberSuggestions.classList.remove("open");
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".autocomplete")) memberSuggestions.classList.remove("open");
+});
+
+document.getElementById("saveTalkBtn").addEventListener("click", () => {
+  const name = selectedMember || memberSearchInput.value.trim();
+  const match = MEMBER_INDEX.get(normName(name));
+  if (!match) { memberSearchInput.focus(); return; }
+  const date = talkDateInput.value;
+  if (!date) { talkDateInput.focus(); return; }
+  manualTalks.push({ date, name: match });
+  saveJSON(LS_MANUAL_TALKS, manualTalks);
+  quickAddDialog.close();
+  render();
+});
+
+/* Settings / sync dialog */
+const settingsDialog = document.getElementById("settingsDialog");
+const sourceRows = document.getElementById("sourceRows");
+const sourceRowTpl = document.getElementById("sourceRowTpl");
+
+document.getElementById("settingsBtn").addEventListener("click", () => {
+  renderSourceRows();
+  settingsDialog.showModal();
+});
+
+function renderSourceRows() {
+  sourceRows.innerHTML = "";
+  if (sources.length === 0) sources = [{ url: "", dateCol: 1, speakerCols: "" }];
+  sources.forEach((src, idx) => addSourceRow(src, idx));
+}
+function addSourceRow(src, idx) {
+  const node = sourceRowTpl.content.cloneNode(true);
+  const urlInput = node.querySelector(".src-url");
+  const dateInput = node.querySelector(".src-date-col");
+  const colsInput = node.querySelector(".src-speaker-cols");
+  urlInput.value = src.url || "";
+  dateInput.value = src.dateCol || 1;
+  colsInput.value = src.speakerCols || "";
+  [urlInput, dateInput, colsInput].forEach((inp) => {
+    inp.addEventListener("change", () => {
+      sources[idx] = {
+        url: urlInput.value.trim(),
+        dateCol: +dateInput.value || 1,
+        speakerCols: colsInput.value.trim(),
+      };
+      saveJSON(LS_SOURCES, sources);
+    });
+  });
+  node.querySelector(".remove-source").addEventListener("click", () => {
+    sources.splice(idx, 1);
+    saveJSON(LS_SOURCES, sources);
+    renderSourceRows();
+  });
+  sourceRows.appendChild(node);
+}
+document.getElementById("addSourceBtn").addEventListener("click", () => {
+  sources.push({ url: "", dateCol: 1, speakerCols: "" });
+  saveJSON(LS_SOURCES, sources);
+  renderSourceRows();
+});
+
+document.getElementById("syncNowBtn").addEventListener("click", async () => {
+  const statusEl = document.getElementById("syncStatus");
+  statusEl.className = "sync-status";
+  statusEl.textContent = "Syncing...";
+  const validSources = sources.filter((s) => s.url && s.speakerCols);
+  if (validSources.length === 0) {
+    statusEl.className = "sync-status error";
+    statusEl.textContent = "Add at least one source with a CSV URL and speaker columns.";
+    return;
+  }
+  let allNewTalks = [];
+  let allUnmatched = [];
+  let errors = [];
+  for (const src of validSources) {
+    const speakerCols = src.speakerCols.split(",").map((c) => parseInt(c.trim(), 10)).filter(Boolean);
+    try {
+      const res = await fetch(src.url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const { talks, unmatched } = parseSourceCSV(text, src.dateCol, speakerCols);
+      allNewTalks = allNewTalks.concat(talks);
+      allUnmatched = allUnmatched.concat(unmatched);
+    } catch (err) {
+      errors.push(`${src.url}: ${err.message}`);
+    }
+  }
+  if (allNewTalks.length > 0) {
+    syncedTalks = dedupeTalks(allNewTalks);
+    saveJSON(LS_SYNCED_TALKS, syncedTalks);
+    localStorage.setItem(LS_LAST_SYNC, new Date().toISOString());
+  }
+  const unmatchedWrap = document.getElementById("unmatchedWrap");
+  const unmatchedBox = document.getElementById("unmatchedBox");
+  const uniqueUnmatched = [...new Set(allUnmatched)].sort();
+  if (uniqueUnmatched.length > 0) {
+    unmatchedWrap.style.display = "";
+    unmatchedBox.textContent = uniqueUnmatched.join(", ");
+  } else {
+    unmatchedWrap.style.display = "none";
+  }
+  if (errors.length > 0) {
+    statusEl.className = "sync-status error";
+    statusEl.textContent = `Synced with errors: ${errors.join(" | ")}`;
+  } else {
+    statusEl.className = "sync-status ok";
+    statusEl.textContent = `Synced ${allNewTalks.length} talk record(s) from ${validSources.length} source(s). If your CSV link fails to load here, double-check it's published (not just shared) and reachable without sign-in.`;
+  }
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
