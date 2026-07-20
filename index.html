@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2f6fed" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12161c" media="(prefers-color-scheme: dark)">
 <title>Ward Talk Scheduler</title>
 <style>
   :root {
@@ -60,29 +62,34 @@
     color: var(--text);
     min-height: 100vh;
   }
-  .wrap { max-width: 1000px; margin: 0 auto; padding: 28px 20px 60px; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  .wrap {
+    max-width: 1000px; margin: 0 auto;
+    padding: clamp(16px, 4vw, 28px) max(16px, env(safe-area-inset-right)) 60px max(16px, env(safe-area-inset-left));
+  }
   header.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h1 { font-size: clamp(1.25rem, 4vw, 1.5rem); margin: 0 0 4px; }
   .subtitle { color: var(--text-dim); font-size: 0.92rem; margin: 0; }
   button {
     font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border);
     background: var(--card); color: var(--text); padding: 8px 14px;
+    min-height: 40px; touch-action: manipulation;
   }
   button:hover { border-color: var(--accent); }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   button.primary:hover { opacity: 0.92; }
-  button.subtle { border: none; background: transparent; color: var(--text-dim); padding: 6px 8px; }
+  button.subtle { border: none; background: transparent; color: var(--text-dim); padding: 6px 8px; min-height: 36px; }
   button.subtle:hover { color: var(--accent); }
   input[type=text], input[type=date], select {
-    font: inherit; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
-    background: var(--card); color: var(--text);
+    font: inherit; font-size: 16px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); min-height: 40px;
   }
   input:focus, select:focus, button:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 18px; }
   .stat-card {
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 12px 16px; min-width: 130px; box-shadow: var(--shadow);
+    padding: 12px 16px; box-shadow: var(--shadow);
   }
   .stat-card .num { font-size: 1.4rem; font-weight: 650; line-height: 1.1; }
   .stat-card .label { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
@@ -113,6 +120,7 @@
   .tag.green .dot { background: var(--green-dot); }
 
   .row-actions { text-align: right; white-space: nowrap; }
+  .row-actions .record-btn { min-height: 36px; }
 
   .empty-state { padding: 40px 16px; text-align: center; color: var(--text-dim); }
 
@@ -150,6 +158,60 @@
   .badge-small { font-size: 0.72rem; background: var(--accent-dim); color: var(--accent); padding: 2px 7px; border-radius: 999px; font-weight: 600; }
   footer.page-foot { margin-top: 22px; font-size: 0.78rem; color: var(--text-dim); text-align: center; }
   a { color: var(--accent); }
+
+  /* ---------- Responsive: tablet ---------- */
+  @media (max-width: 768px) {
+    .source-row { grid-template-columns: 1fr 1fr; grid-template-areas: "url url" "date cols" "remove remove"; }
+    .source-row .src-url { grid-area: url; }
+    .source-row .src-date-col { grid-area: date; }
+    .source-row .src-speaker-cols { grid-area: cols; }
+    .source-row .remove-source { grid-area: remove; justify-self: end; }
+  }
+
+  /* ---------- Responsive: mobile ---------- */
+  @media (max-width: 640px) {
+    .wrap { padding-top: 16px; }
+    header.page-head { flex-direction: column; align-items: stretch; gap: 12px; }
+    .top-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .top-actions button { min-height: 44px; }
+
+    .stats { grid-template-columns: repeat(2, 1fr); }
+
+    .controls { flex-direction: column; align-items: stretch; padding: 12px; }
+    .controls input[type=text], .controls select { width: 100%; min-width: 0; min-height: 44px; }
+    .controls .spacer { display: none; }
+    .count-line { flex-direction: column; gap: 2px; }
+
+    /* Card-based responsive table: a well-established pattern for tabular
+       data on narrow viewports (stack rows into labeled cards). */
+    table, thead, tbody, tr, td { display: block; width: 100%; }
+    thead {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+    tbody tr {
+      border: 1px solid var(--border); border-radius: 10px; margin: 10px 12px; overflow: hidden;
+    }
+    tbody tr:hover { background: none; }
+    tbody td { border-bottom: 1px solid var(--border); padding: 10px 14px; }
+    tbody tr:last-child { margin-bottom: 12px; }
+    tbody tr td:last-child { border-bottom: none; }
+    td.member-name { font-size: 1rem; background: var(--accent-dim); }
+    td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    td[data-label]::before {
+      content: attr(data-label); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-dim); font-weight: 600; flex: 0 0 auto;
+    }
+    td.row-actions .record-btn { width: 100%; min-height: 44px; border: 1px solid var(--border); }
+
+    .pagination button { min-height: 40px; min-width: 40px; }
+
+    dialog { width: 94vw; max-height: 90vh; }
+    .dialog-body { max-height: 72vh; }
+    .source-row { grid-template-columns: 1fr; grid-template-areas: "url" "date" "cols" "remove"; }
+    #addSourceBtn, #syncNowBtn { width: 100%; min-height: 44px; }
+    .dialog-foot button { flex: 1; min-height: 44px; }
+  }
 </style>
 </head>
 <body>
@@ -534,8 +596,8 @@ function rowHTML(r) {
   return `
     <tr>
       <td class="member-name">${escapeHTML(r.name)}</td>
-      <td>${formatDate(r.lastDate)}<div class="talk-count">${monthsLabel(r.months)}${r.count ? ` &middot; ${r.count} talk${r.count === 1 ? "" : "s"}` : ""}</div></td>
-      <td><span class="tag ${tagClass}"><span class="dot"></span>${tagLabel}</span></td>
+      <td data-label="Last talk">${formatDate(r.lastDate)}<div class="talk-count">${monthsLabel(r.months)}${r.count ? ` &middot; ${r.count} talk${r.count === 1 ? "" : "s"}` : ""}</div></td>
+      <td data-label="Status"><span class="tag ${tagClass}"><span class="dot"></span>${tagLabel}</span></td>
       <td class="row-actions"><button class="subtle record-btn" data-name="${escapeHTML(r.name)}">Record talk</button></td>
     </tr>`;
 }
