@@ -24,7 +24,21 @@ The page ships with speaker history already seeded from the data provided
 when this was built, so it's useful immediately — connecting a live sheet
 is optional, for keeping it current going forward.
 
-## Hosting on GitHub Pages
+## Hosting on Cloudflare Workers
 
-Settings → Pages → Deploy from branch → pick this branch and `/ (root)`.
-The site will be served at `https://<user>.github.io/talk-scheduler/`.
+The site is served as a static Worker (see `wrangler.jsonc`) on
+`af41st.com`, deployed automatically on push to `main` via Workers
+Builds, and gated by Cloudflare Access (one-time PIN login).
+
+One-time setup in the Cloudflare dashboard (not scriptable from here):
+
+1. **Connect the repo** — Workers & Pages → Create → Workers →
+   Import a repository → pick `talk-scheduler` → branch `main`.
+   Wrangler picks up `wrangler.jsonc` automatically, including the
+   `af41st.com` custom domain route.
+2. **Create the Access application** — Zero Trust → Access →
+   Applications → Add an application → Self-hosted. Set the domain to
+   `af41st.com` (root domain, no path). Under authentication, enable
+   **One-time PIN** as the login method.
+3. **Create the Access policy** — Allow action, include rule: Emails,
+   listing the three ward leaders who should have access.
