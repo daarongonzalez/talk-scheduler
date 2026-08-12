@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "talk-scheduler",
+  "compatibility_date": "2026-08-12",
+  "assets": {
+    "directory": "./"
+  },
+  "routes": [
+    { "pattern": "af41st.com", "custom_domain": true }
+  ]
+}
