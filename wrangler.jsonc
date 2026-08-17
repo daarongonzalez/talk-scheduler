@@ -1,10 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "talk-scheduler",
+  "main": "worker/index.js",
   "compatibility_date": "2026-08-12",
   "assets": {
-    "directory": "./"
+    "directory": "./",
+    "binding": "ASSETS"
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "talk-scheduler-db",
+      "database_id": "4b23bc4c-d192-49d6-b39d-37dfe55718d5"
+    }
+  ],
   "routes": [
     { "pattern": "af41st.com", "custom_domain": true }
   ]

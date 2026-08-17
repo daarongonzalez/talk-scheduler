@@ -140,11 +140,14 @@
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label { font-size: 0.8rem; color: var(--text-dim); font-weight: 600; }
   .field .hint { font-size: 0.76rem; color: var(--text-dim); }
-  .source-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
-  .source-row input { width: 100%; }
-  .sync-status { font-size: 0.82rem; color: var(--text-dim); min-height: 1.2em; }
-  .sync-status.error { color: var(--red-text); }
-  .sync-status.ok { color: var(--green-text); }
+  .form-status { font-size: 0.82rem; color: var(--text-dim); min-height: 1.2em; }
+  .form-status.error { color: var(--red-text); }
+  .form-status.ok { color: var(--green-text); }
+  .manage-list { display: flex; flex-direction: column; gap: 8px; }
+  .manage-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
+  .manage-row .mr-name { font-weight: 550; flex: 1 1 auto; }
+  .manage-row .mr-date { color: var(--text-dim); font-size: 0.85rem; white-space: nowrap; }
+  .manage-row .mr-actions { display: flex; gap: 4px; }
   .autocomplete { position: relative; }
   .autocomplete-list {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--card);
@@ -154,18 +157,13 @@
   .autocomplete-list.open { display: block; }
   .autocomplete-list div { padding: 8px 12px; cursor: pointer; font-size: 0.9rem; }
   .autocomplete-list div:hover, .autocomplete-list div.active { background: var(--accent-dim); }
-  .unmatched-box { font-size: 0.82rem; color: var(--text-dim); background: var(--accent-dim); border-radius: 8px; padding: 10px 12px; max-height: 140px; overflow-y: auto; }
   .badge-small { font-size: 0.72rem; background: var(--accent-dim); color: var(--accent); padding: 2px 7px; border-radius: 999px; font-weight: 600; }
   footer.page-foot { margin-top: 22px; font-size: 0.78rem; color: var(--text-dim); text-align: center; }
   a { color: var(--accent); }
 
   /* ---------- Responsive: tablet ---------- */
   @media (max-width: 768px) {
-    .source-row { grid-template-columns: 1fr 1fr; grid-template-areas: "url url" "date cols" "remove remove"; }
-    .source-row .src-url { grid-area: url; }
-    .source-row .src-date-col { grid-area: date; }
-    .source-row .src-speaker-cols { grid-area: cols; }
-    .source-row .remove-source { grid-area: remove; justify-self: end; }
+    .manage-row { flex-wrap: wrap; }
   }
 
   /* ---------- Responsive: mobile ---------- */
@@ -208,8 +206,8 @@
 
     dialog { width: 94vw; max-height: 90vh; }
     .dialog-body { max-height: 72vh; }
-    .source-row { grid-template-columns: 1fr; grid-template-areas: "url" "date" "cols" "remove"; }
-    #addSourceBtn, #syncNowBtn { width: 100%; min-height: 44px; }
+    .manage-row { align-items: flex-start; }
+    #manageAddBtn { width: 100%; min-height: 44px; }
     .dialog-foot button { flex: 1; min-height: 44px; }
   }
 </style>
@@ -223,7 +221,7 @@
     </div>
     <div class="top-actions">
       <button id="quickAddBtn">+ Record a talk</button>
-      <button id="settingsBtn">Sync settings</button>
+      <button id="manageBtn">Manage records</button>
     </div>
   </header>
 
@@ -247,20 +245,20 @@
     </div>
     <div class="count-line">
       <span id="countLine"></span>
-      <span id="syncLine"></span>
+      <span id="dataLine"></span>
     </div>
     <div id="tableHolder"></div>
     <div class="pagination" id="pagination"></div>
   </div>
 
   <footer class="page-foot">
-    Data seeded from the ward's meeting schedule. Configure a live Google Sheet sync under "Sync settings" to keep this current.
+    Talk history seeded from the ward's meeting schedule. Use "Record a talk" or "Manage records" to add or fix entries — they're shared instantly with all three leaders.
   </footer>
 </div>
 
 <dialog id="quickAddDialog">
   <div class="dialog-head">
-    <h2>Record a talk</h2>
+    <h2 id="quickAddTitle">Record a talk</h2>
     <button class="subtle" data-close="quickAddDialog">&times;</button>
   </div>
   <div class="dialog-body">
@@ -273,7 +271,8 @@
       <label for="talkDateInput">Date spoken</label>
       <input type="date" id="talkDateInput">
     </div>
-    <p class="hint">This is saved in this browser only. To share it with the other leaders, add the same entry to the ward Google Sheet, or use "Sync settings" once the sheet is connected.</p>
+    <p class="hint">Shared instantly with all three leaders — this isn't saved to just this browser.</p>
+    <div class="form-status" id="quickAddStatus"></div>
   </div>
   <div class="dialog-foot">
     <button data-close="quickAddDialog">Cancel</button>
@@ -281,70 +280,63 @@
   </div>
 </dialog>
 
-<dialog id="settingsDialog">
+<dialog id="manageDialog">
   <div class="dialog-head">
-    <h2>Google Sheet sync</h2>
-    <button class="subtle" data-close="settingsDialog">&times;</button>
+    <h2>Manage records</h2>
+    <button class="subtle" data-close="manageDialog">&times;</button>
   </div>
   <div class="dialog-body">
     <p class="hint">
-      In Google Sheets: <strong>File &rarr; Share &rarr; Publish to web</strong>, pick the tab, choose <strong>CSV</strong>, and paste the link below.
-      Add one source per year/tab. Columns are 1-indexed (A=1, H=8, I=9, J=10, K=11&hellip;).
+      Talks recorded here (as opposed to seeded from the ward's meeting schedule). Edit or delete a
+      record to fix a mistake — changes are shared instantly with all three leaders.
     </p>
-    <div id="sourceRows"></div>
-    <button id="addSourceBtn">+ Add source</button>
-    <div class="field">
-      <label>&nbsp;</label>
-      <button class="primary" id="syncNowBtn">Sync now</button>
-    </div>
-    <div class="sync-status" id="syncStatus"></div>
-    <div id="unmatchedWrap" style="display:none">
-      <label style="font-size:0.8rem;color:var(--text-dim);font-weight:600;">Unrecognized speaker names from last sync</label>
-      <div class="unmatched-box" id="unmatchedBox"></div>
-    </div>
+    <button id="manageAddBtn">+ Add a talk</button>
+    <div class="form-status" id="manageStatus"></div>
+    <div class="manage-list" id="manageList"></div>
   </div>
   <div class="dialog-foot">
-    <button data-close="settingsDialog">Close</button>
+    <button data-close="manageDialog">Close</button>
   </div>
 </dialog>
-
-<template id="sourceRowTpl">
-  <div class="source-row">
-    <input type="text" class="src-url" placeholder="Published CSV URL">
-    <input type="text" class="src-date-col" placeholder="Date col" value="1">
-    <input type="text" class="src-speaker-cols" placeholder="Speaker cols (e.g. 9,11)">
-    <button class="subtle remove-source" title="Remove">&times;</button>
-  </div>
-</template>
 
 <script>
 /* ---------- Seed data ---------- */
 const MEMBERS = ["Abbigail Slade","Abby Hammond","Abigail Christensen","Adam Dubois","Adeline Ember Sled","Adrianne Candice Balch","Aiden Oliver","Aiyana Devereaux","Alan Roy Darowski","Aleece Morriss","Alex Hernandez","Alex Rwankuba","Alexander James Tilton","Alexiss Harward","Alfred Scott Dodini","Alissa Anne Herfel","Allie Ray Wilson","Allison Fannin","Allysa Salehian","Amber Christine Sherman","Ammon Curtis","Amy Naylor","Andrea Brown","Andrea Olga DeMita","Andrew Steven Darowski","Andrew LaVoie","Andy Pinilla","Anna Moody","Anne Audino","Anthony Cassiero","Anthony McMillan","Anzie Mae Brown","Archy Kougen Sherman","Aria Olianna Perez","Ashtyn Davies","Austin Kay","Ava May Busi","Ava Lynn McMillan","Bailey Reeder","Beckham Dean Kay","Ben Curtis","Ben Erland","Ben Giles","Ben Jenks","Ben Smith","Ben Wall","Benjamin Daley","Benjamin Hepworth","Benjamin Mycal Pearson","Benjamin Peterson","Benjamin Reid","Bennett Blanthorn","Bentley Calvin Robinson","Bethany Kennedy","Blaine Larsen","Blythe Berlyn Madrigal","Boston Justis Brown","Boston Burt","Braden Kerr","Braeden Dix","Brandon Bean","Brandon Engles","Brandon Rosier","Braxton Ray Thomas Threlfall","Brayden Higginson","Breana Gibbs","Breighlin Alyscha Johanson","Brendan Bandoli","Brian Jones","Bridger Kyle Burt","Brigham Harang Ahn","Brinley Mae McMillan","Brinllee Limb","Brooklyn Nelson","Brooks Thomas Holman","Brooks Houghton","BryAnna Faith Rivera","Bryson Linnell","Bryson Van Houten","Cade Wright","Caden Olson","Caleb Isiah Perez","Calvin Keith Haws","Camille Peterson","Camylle Eliza Oliver","Candice Fehlberg","Carl Hackford","Carla Hansen","Carlee Smith","Carley Malina Darowski","Carly Newsom","Caroline Angle","Carson Robert Staley","Carter Paul Reid","Carter Russ","Casen Van Houten","Casey Jones","Caysen Wright","Channing Blanthorn","Charles Anthony Keele","Charles Unice","Charlotte Hotard","Chase Edward Madrigal","Chase Thomas Sled","Chloe Renee Reid","Christian Rey Nava","Christiana Warr","Christopher Anthony John McMillan","Cleo McKai Jo Unice","Colter Leon Isaacson","Colton Pearson","Cooper Devan Durrant","Cora Ann Walker","Courtney Culver","Cruz Schempp","D'Aaron Gonzalez","Daisy Kimberly Jenks","Daisy Lamb","Daken Broadhead","Dakota Swensen","Dakotah Hoogland","Dallin Day","Dallin Newmaker","Dalton Beck","Dan Duncan","Daniel Pope","Danielle Davis","Danielle Neil","David Dodini","David Dudley","David Eastley","David Munasinghe","David Neil","Dawn Porter","Deanna Wardle","Delaine Peterson","Denise Harper","Derek Rudd","Devan Durrant","Diego Ovidio Alvarenga Rosa","DJ Sorensen","Drew Pearson","Dylan Salehian","Easton Wright","Ed Porter","Eddie Olpin","Eden Isaacson","Elijah Ezra Oliver","Elijah Jacob Shumway","Eliott Russ","Elizabeth Porter","Ella Noel Salehian","Elliana Renee Staley","Elsie Pulsifer","Emily Ruth Fotheringham","Emily Giles","Emily Naylor","Emily Pope","Emily Van Houten","Emma Checketts","Emma Elizabeth Golding","Emma Higginson","Enoch Golding","Eric Keele","Eric Richard Naylor","Ethan Ashby","Ethan Call","Ethan Slade","Eva Melton","Evette Taylor Higginson","Evren Wrathall Hepworth","Ezra Ames Salehian","Fenrys Scottie Fehlberg","Fred Fleming","Freya Lynn Dodini","Gabriel Christensen","Gabriel Stark","Gage Jensen","Gage William Pulsifer","Garrett Isaacson","Gavin Lee Tilton","Genevieve Ann Jones","George Elliott","George Donald Pont","Georgiana Jennifer Madrigal","Gina Marie Bacalski","Gordon Pont","Grant Goodwin","Graydon Woodlief","Gregory Haycock","Gwang Woong Ahn","Gwen Elizabeth Wood","Hailey Joelle Towery","Haley Jolie","Haley Smalley","Hannah Evans","Hannah Fife","Hannah Renee Walker","Harmony Rose Van Houten","Harper Shaw","Harrison Reed Pont","Hayden Keith Haws","Hayden Noyes","Hayes Redford Brown","Hayes Towery","Haylee Jane Kersh","Hazel Joelle Towery","Houston Brown","Hudson Samuel Walker","Hunter Angle","Hunter Evans","Hunter Quinn Hannemann","Ian Devereaux","Ida Soyeong Ahn","Isaac Davies","Isabel Pho","Ivan Graham Darowski","Ivie June Larsen","Jace Gibbs","Jacie Clarke","Jack Edward Madrigal","Jacob Vanderheyden","Jaden Terry","Jakob Taylor","James Ephraim Clarke","James Andrew DeMita","James K Young","Janae Ann Sled","Jane Warr","Jared Gonzalez","Jason Lee Anderson","Jason Steven Blanthorn","Jason Garner","Jason Kirk Oliver","Jasper Smith","Jay Bacalski","Jayden Hoogland","Jayden Wilson","Jennilyn Wright","Jensen Jade Boswell","Jentri Esplin","Jeremy Erland","Jessalin Lilly Webb","Jessica Lee Ames","Jessica Daley","Jessica DeAnn Jones","Jessica Lewis","Jessica Walker","Jett Hoogland","John Busi","John Bart Vera","Johnny Ahn","Jon Andrew Dubois","Jonah Anderson","Jordan Naylor","Jordan Reid","Jordie Fuller","Jordyn Denver","Joseph Fletcher","Joseph Abraham Maynez Hernandez","Josh Kersh","Josh Sherman","Joshua Buckley","Josiah Balch","Juan Carlos Rufasto","Justin Reel","Justis Brown","Jyllian Unice","Kade Kurt Frischknecht","Kai Henry Hoogland","Kailey Kay","Karissa Cassiero","Karter Koy Dibb","Kate Warr","Katherine Lyne Erland","Katherine Diane Fotheringham","Katherine Anne Hall","Kathryn Keele","Kathryn Elisabeth Stark","Katie Blomquist","Katie Hotard","Kaydawn Mecham","Kayla Marie Pont","Kayli Noel Newmaker","Kaylie Diane Lowe","Keaton O'Connor","Keira Threlfall","Kelley Allred","Kellie Ann Haws","Kelly Golding","Kenbree Evans","Kendalyn Evans","Kenslee Annette Threlfall","Kent Hall","Keona Hannemann","Keoni Shaw","Kerry Jean Nyavor","Kestra Marie Darowski","Kian Golding","Kian Eugene Larsen","Kinlea Olson","Kirsten Ivy Page Peterson","Koda Russell Olson","Kory Peterson","Koy Dibb","Krista Danielle Pulsifer","Kyle Abbott","Kyle Warr","Kylee Elizabeth Jones","Kylee Schmitt","Kylee Rose Threlfall","Kylee Wunder","LaDawn McPherson","Laikin Alexis Erland","Lander Jase Erland","Larry Brent Robinson","Laudy Jane Gonzalez","Laura Taylor","Lauren Elizabeth Cranford","Lauren Diann Pinson","Leilani Ortega","Lennon Jeremy Erland","Leo James Giles","Leo Kenji Sherman","Lettie Ann Cassiero","Levi Thorpe","Liam Pierce","Liam Marco Rivera","Liam Casen Van Houten","Lillie Mae Towery","Lincoln Russell Burrows","Linsey Tullis","Lionel Palmieri","Lochlan Keith Erland","Logan Keaton Cassiero","Logan William Hepworth","Logan Kenneth Stites","Lola Cindy Jenks","Lori Ann Kersh","Lucas Joshua Buckley","Lucas Daniel Cassiero","Luna Rose Smith","Lynda Maritza Martinez Fajardo","Mabel Keele","Madeline Larsen","Madison Yvonne Blonquist","Maegen Taylor McMillan","Mairghread LaVoie","Makayla Simons","Makenzie Madrigal","Mallery Noyes","Mallory Reel","Mandy Shaw","Marc Ogden","Margaret Wight","Mark Hegewald","Matt Smith","Matthew Shallenberger","Matthew Ross Walker","McKay Orr","McKay Wilson Smith","McKenna Blanthorn","McKenzie Kae Gregory","Mea Rachael Harris","Meaghen Balena","Megan Heaps","Megan Nicole Kerr","Megan Stites","Melaina Holman","Melinda Naylor","Melinda Thorpe","Mia Dibb","Mia Grace Golding","Mikaila Curtis","Mike Burgoyne","Miles Hammond","Milo Kemper Brown","Mindi Vera Gray","Misha Marie Bean","Moly R. Yim","Morgan Elizabeth Luedtke","Morgan Taylor Palmieri","Morgan Sorensen","Mumford Gifford Madrigal","Myla Milagros Kersh","Naomi Rae Linnell","Natalie Mccutcheon","Nathan Palmieri","Nathan Wells Peterson","Nathan Shumway","Nathan Webb","Nathaniel Evans","Nelson Alexander Pierce","Nicholas Bishop","Nicholas Shrum","Nicholas Wight","Noah Golding","Noelle Elise Ahn","Oakley Gene' Hegewald","Oliver Callum Abbott","Oliver Hudson Gray","Olivia Dix","Olivia Caroline Pearson","Olivia Rogers","Owen Herb Van Houten","Ozzy Lee Gregory","Paige Ashby","Pam Morriss","Paul Fotheringham","Paul Hanson","Paxton Patey","Peggy Evans","Percy Samiuela Harris","Phillip Mason","Preston Bledsoe","Quincy Kae Gregory","Rachael Berry","Rachel Gonzalez","Raya Dee Gonzales","Reagan Buckley","Rebecca Erickson","Regan Porter Ross","Reggie Ray Esplin","Reverie Quinn Devereaux","Rexford James Fotheringham","Rhett Matthew Jones","Richard Holling III Lowe","Riley Paris Broadhead","Riley Holman","Ririe McKay Smith","Rowyn Grant Hepworth","Russell Day","Ryan Boswell","Ryan Christman","Ryan Cranford","Ryan Keith Larsen","Rykan Peterson","Ryker Howard Larsen","Rylee Bledsoe","Sager Calvin Walker","Sam Tilton","Samuel John Fotheringham","Samuel Tilton","Samuel Walker","Sara Viviana Cardenas Bishop","Sarah Fredrick","Sarah Lewis","Saren Busi","Sariah Eastley","Savanna Mason","Sawyer Hayes Towery","Scott Hotard","Scott David Kerr","Sean Noah","Shelby Lin Jenks","Shelley Tilton","Skye Kimberly Sherman","Sophi Pearson","Sophia Fife","Sophia May Gonzalez","Sophie Kaylyn Wright","Stehle Shaw","Stephen Fredrick","Stephen Tuttle","Supi Takau","Susan Amanda Pearson","Tanner Aiono","Tanner Wood","Tara Leann Alba","Tate Dale Dibb","Taylor Boswell","Taylor Dean","Taylor Mason","Teak Balena","Tess Elliott","Tessa Lynn Dodini","Theodore James Bean","Thomas Christensen","Tianna Maria Hepworth","Toby Schmitt","Todd Morriss","Travis Hunter Ames","Trey Esplin","Trinity Berry","Tristan Oliver","Trynitee Behm","Tyler Gregory","Tyler Russ","Tyler Tilton","Tyler Walke","Tyrell Cowles","Valkyrie Rachelle Fehlberg","Veronika Carmen Brown","Vince Michael Keiji Sherman","Walter Bernard Fotheringham","Wells Aaron Davies","Wendy Free","Wes Larson","Wesley Grey Durrant","Weston Simons","Whitney Faye Curtis","William Towery","Willow Brown","Wilson Lehi Darowski","Win Jeanfreau","Winter James Brown","Zack Jolie","Zella Mae Maria Pulsifer","Zoe Ellen Smith","Zoey Wright"];
-const SEED_TALKS = [{"date":"2025-01-12","name":"D'Aaron Gonzalez"},{"date":"2025-01-26","name":"Ethan Slade"},{"date":"2025-01-26","name":"Abbigail Slade"},{"date":"2025-03-09","name":"Gwang Woong Ahn"},{"date":"2025-03-16","name":"Sarah Lewis"},{"date":"2025-03-23","name":"Josh Sherman"},{"date":"2025-03-30","name":"McKenna Blanthorn"},{"date":"2025-03-30","name":"Taylor Boswell"},{"date":"2025-03-30","name":"Ben Curtis"},{"date":"2025-05-11","name":"Rexford James Fotheringham"},{"date":"2025-05-11","name":"Ryan Boswell"},{"date":"2025-05-11","name":"Stephen Fredrick"},{"date":"2025-05-25","name":"Trinity Berry"},{"date":"2025-05-25","name":"McKenzie Kae Gregory"},{"date":"2025-06-15","name":"Mia Dibb"},{"date":"2025-06-15","name":"Samuel Walker"},{"date":"2025-06-22","name":"Hailey Joelle Towery"},{"date":"2025-07-13","name":"Paul Fotheringham"},{"date":"2025-07-20","name":"Allysa Salehian"},{"date":"2025-07-20","name":"Sam Tilton"},{"date":"2025-07-27","name":"Tanner Aiono"},{"date":"2025-08-10","name":"Hannah Evans"},{"date":"2025-08-10","name":"Hunter Evans"},{"date":"2025-08-24","name":"Anzie Mae Brown"},{"date":"2025-08-24","name":"Jordan Reid"},{"date":"2025-08-31","name":"Rachel Gonzalez"},{"date":"2025-08-31","name":"Gage William Pulsifer"},{"date":"2025-09-14","name":"Tyler Russ"},{"date":"2025-09-14","name":"Kaydawn Mecham"},{"date":"2025-09-21","name":"Hannah Renee Walker"},{"date":"2025-09-28","name":"Madison Yvonne Blonquist"},{"date":"2025-09-28","name":"Nicholas Shrum"},{"date":"2025-10-19","name":"Margaret Wight"},{"date":"2025-11-09","name":"Nicholas Shrum"},{"date":"2025-11-09","name":"Jason Steven Blanthorn"},{"date":"2025-11-16","name":"Haley Jolie"},{"date":"2025-11-23","name":"Justin Reel"},{"date":"2025-12-28","name":"Kaydawn Mecham"},{"date":"2026-01-11","name":"Saren Busi"},{"date":"2026-02-08","name":"Kathryn Elisabeth Stark"},{"date":"2026-02-08","name":"Benjamin Reid"},{"date":"2026-02-22","name":"Danielle Neil"},{"date":"2026-02-22","name":"David Neil"},{"date":"2026-03-08","name":"Jayden Hoogland"},{"date":"2026-03-08","name":"Tyler Gregory"},{"date":"2026-03-15","name":"Katie Hotard"},{"date":"2026-03-22","name":"Daniel Pope"},{"date":"2026-04-19","name":"Makenzie Madrigal"},{"date":"2026-04-19","name":"Chase Edward Madrigal"},{"date":"2026-05-17","name":"Kent Hall"},{"date":"2026-05-24","name":"Gabriel Stark"},{"date":"2026-05-24","name":"Morgan Elizabeth Luedtke"},{"date":"2026-05-31","name":"Benjamin Daley"},{"date":"2026-05-31","name":"Jessica Daley"},{"date":"2026-07-12","name":"Jessica Daley"},{"date":"2026-07-12","name":"Andrea Brown"},{"date":"2026-07-19","name":"Gage William Pulsifer"}];
+const SEED_UPDATED = "2026-08-17";
+const SEED_TALKS = [{"date":"2025-01-12","name":"D'Aaron Gonzalez"},{"date":"2025-01-26","name":"Ethan Slade"},{"date":"2025-01-26","name":"Abbigail Slade"},{"date":"2025-03-09","name":"Gwang Woong Ahn"},{"date":"2025-03-16","name":"Sarah Lewis"},{"date":"2025-03-23","name":"Josh Sherman"},{"date":"2025-03-30","name":"McKenna Blanthorn"},{"date":"2025-03-30","name":"Taylor Boswell"},{"date":"2025-03-30","name":"Ben Curtis"},{"date":"2025-05-11","name":"Rexford James Fotheringham"},{"date":"2025-05-11","name":"Ryan Boswell"},{"date":"2025-05-11","name":"Stephen Fredrick"},{"date":"2025-05-25","name":"Trinity Berry"},{"date":"2025-05-25","name":"McKenzie Kae Gregory"},{"date":"2025-06-15","name":"Mia Dibb"},{"date":"2025-06-15","name":"Samuel Walker"},{"date":"2025-06-22","name":"Hailey Joelle Towery"},{"date":"2025-07-13","name":"Paul Fotheringham"},{"date":"2025-07-20","name":"Allysa Salehian"},{"date":"2025-07-20","name":"Sam Tilton"},{"date":"2025-07-27","name":"Tanner Aiono"},{"date":"2025-08-10","name":"Hannah Evans"},{"date":"2025-08-10","name":"Hunter Evans"},{"date":"2025-08-24","name":"Anzie Mae Brown"},{"date":"2025-08-24","name":"Jordan Reid"},{"date":"2025-08-31","name":"Rachel Gonzalez"},{"date":"2025-08-31","name":"Gage William Pulsifer"},{"date":"2025-09-14","name":"Tyler Russ"},{"date":"2025-09-14","name":"Kaydawn Mecham"},{"date":"2025-09-21","name":"Hannah Renee Walker"},{"date":"2025-09-28","name":"Madison Yvonne Blonquist"},{"date":"2025-09-28","name":"Nicholas Shrum"},{"date":"2025-10-19","name":"Margaret Wight"},{"date":"2025-11-09","name":"Nicholas Shrum"},{"date":"2025-11-09","name":"Jason Steven Blanthorn"},{"date":"2025-11-16","name":"Haley Jolie"},{"date":"2025-11-23","name":"Justin Reel"},{"date":"2025-12-28","name":"Kaydawn Mecham"},{"date":"2026-01-11","name":"Saren Busi"},{"date":"2026-02-08","name":"Kathryn Elisabeth Stark"},{"date":"2026-02-08","name":"Benjamin Reid"},{"date":"2026-02-22","name":"Danielle Neil"},{"date":"2026-02-22","name":"David Neil"},{"date":"2026-03-08","name":"Jayden Hoogland"},{"date":"2026-03-08","name":"Tyler Gregory"},{"date":"2026-03-15","name":"Katie Hotard"},{"date":"2026-03-22","name":"Daniel Pope"},{"date":"2026-04-19","name":"Makenzie Madrigal"},{"date":"2026-04-19","name":"Chase Edward Madrigal"},{"date":"2026-05-17","name":"Kent Hall"},{"date":"2026-05-24","name":"Gabriel Stark"},{"date":"2026-05-24","name":"Morgan Elizabeth Luedtke"},{"date":"2026-05-31","name":"Benjamin Daley"},{"date":"2026-05-31","name":"Jessica Daley"},{"date":"2026-06-21","name":"Tessa Lynn Dodini"},{"date":"2026-06-28","name":"Rachel Gonzalez"},{"date":"2026-06-28","name":"McKenzie Kae Gregory"},{"date":"2026-07-12","name":"Jessica Daley"},{"date":"2026-07-12","name":"Andrea Brown"},{"date":"2026-07-19","name":"Gage William Pulsifer"},{"date":"2026-07-26","name":"Abby Hammond"},{"date":"2026-08-09","name":"Allison Fannin"},{"date":"2026-08-09","name":"Megan Nicole Kerr"},{"date":"2026-08-16","name":"Sarah Fredrick"}];
 
-/* ---------- Storage helpers ---------- */
-const LS_MANUAL_TALKS = "talkScheduler.manualTalks";
-const LS_SYNCED_TALKS = "talkScheduler.syncedTalks";
-const LS_SOURCES = "talkScheduler.sources";
-const LS_LAST_SYNC = "talkScheduler.lastSync";
+/* ---------- Manual talk records (shared via the /api/talks Worker + D1) ---------- */
+let manualTalks = [];
 
-function loadJSON(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch (e) {
-    return fallback;
-  }
+async function apiListTalks() {
+  const res = await fetch("/api/talks");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
-function saveJSON(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+async function apiCreateTalk(name, date) {
+  const res = await fetch("/api/talks", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, date }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+  return res.json();
+}
+async function apiUpdateTalk(id, name, date) {
+  const res = await fetch(`/api/talks/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, date }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+  return res.json();
+}
+async function apiDeleteTalk(id) {
+  const res = await fetch(`/api/talks/${id}`, { method: "DELETE" });
+  if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
 }
 
-let manualTalks = loadJSON(LS_MANUAL_TALKS, []);
-let syncedTalks = loadJSON(LS_SYNCED_TALKS, []);
-let sources = loadJSON(LS_SOURCES, []);
-
-/* ---------- Name matching (shared by CSV sync) ---------- */
+/* ---------- Name matching ---------- */
 function normName(s) {
   return s
     .normalize("NFKD").replace(/[̀-ͯ]/g, "")
@@ -392,93 +384,6 @@ function matchMember(rawName) {
   return candidates.length === 1 ? candidates[0] : null;
 }
 
-const LABELS_RE = /(Youth Speaker|HC Speaker|GC Testimony|Speaker)\s*:/gi;
-function extractNames(cell) {
-  cell = (cell || "").trim();
-  if (!cell || cell === "—" || cell === "-" || cell.toUpperCase() === "N/A") return [];
-  cell = cell.replace(/\b(EASTER SUNDAY|MOTHER'S DAY|FATHER'S DAY|WARD CONFERENCE|GENERAL CONFERENCE|STAKE CONFERENCE)\b/gi, " ");
-
-  let segments = [];
-  const hasLabel = /(Youth Speaker|HC Speaker|GC Testimony|Speaker)\s*:/i.test(cell);
-  if (hasLabel) {
-    const parts = cell.split(LABELS_RE);
-    for (let i = 1; i < parts.length; i += 2) {
-      let text = parts[i + 1] || "";
-      text = text.split(/\bTopic\s*:|\bSong\s*:/i)[0];
-      segments.push(text.trim());
-    }
-  } else {
-    segments.push(cell.split(/\bTopic\s*:|\bSong\s*:/i)[0].trim());
-  }
-
-  const names = [];
-  for (let seg of segments) {
-    seg = seg.replace(/\([^)]*\)/g, "").trim();
-    seg = seg.replace(/^(Bishop|President|Bro\.?|Brother|Sister|Elder)\s+/i, "").trim();
-    seg = seg.replace(/\s+(Topic|Song)\s*$/i, "").trim();
-    if (!seg) continue;
-    const n = normName(seg);
-    if (NON_NAME_PHRASES.has(n) || n.length < 3) continue;
-    names.push(seg);
-  }
-  return names;
-}
-
-const MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
-function parseLooseDate(s) {
-  const m = (s || "").trim().match(/(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/);
-  if (m) {
-    const mon = MONTHS[m[2].slice(0,3).toLowerCase()];
-    if (mon) return `${m[3]}-${String(mon).padStart(2,"0")}-${String(+m[1]).padStart(2,"0")}`;
-  }
-  const d = new Date(s);
-  if (!isNaN(d)) return d.toISOString().slice(0,10);
-  return null;
-}
-
-/* ---------- Minimal CSV parser (handles quoted fields) ---------- */
-function parseCSV(text) {
-  const rows = [];
-  let row = [], field = "", inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++; }
-        else inQuotes = false;
-      } else field += c;
-    } else {
-      if (c === '"') inQuotes = true;
-      else if (c === ",") { row.push(field); field = ""; }
-      else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
-      else if (c === "\r") { /* skip */ }
-      else field += c;
-    }
-  }
-  if (field.length || row.length) { row.push(field); rows.push(row); }
-  return rows.filter((r) => r.some((c) => c.trim() !== ""));
-}
-
-function parseSourceCSV(csvText, dateCol, speakerCols) {
-  const rows = parseCSV(csvText);
-  const talks = [];
-  const unmatched = new Set();
-  for (const r of rows) {
-    const dateRaw = r[dateCol - 1];
-    const date = parseLooseDate(dateRaw);
-    if (!date) continue;
-    for (const col of speakerCols) {
-      const cell = r[col - 1];
-      for (const raw of extractNames(cell)) {
-        const member = matchMember(raw);
-        if (member) talks.push({ date, name: member });
-        else unmatched.add(raw);
-      }
-    }
-  }
-  return { talks, unmatched: [...unmatched] };
-}
-
 /* ---------- Data assembly ---------- */
 function dedupeTalks(list) {
   const seen = new Set();
@@ -490,7 +395,7 @@ function dedupeTalks(list) {
   return out;
 }
 function allTalks() {
-  return dedupeTalks([...SEED_TALKS, ...syncedTalks, ...manualTalks]);
+  return dedupeTalks([...SEED_TALKS, ...manualTalks]);
 }
 
 function monthsBetween(dateStr, now) {
@@ -587,7 +492,7 @@ function render() {
       </table>`;
   }
   renderPagination(totalPages);
-  renderSyncLine();
+  renderDataLine();
 }
 
 function rowHTML(r) {
@@ -621,11 +526,10 @@ function renderStats(all) {
   `).join("");
 }
 
-function renderSyncLine() {
-  const last = localStorage.getItem(LS_LAST_SYNC);
-  document.getElementById("syncLine").textContent = last
-    ? `Last synced ${new Date(last).toLocaleString()}`
-    : "Not synced with a Google Sheet yet";
+function renderDataLine() {
+  const seedDate = new Date(SEED_UPDATED + "T00:00:00").toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  document.getElementById("dataLine").textContent =
+    `Seeded from the meeting schedule as of ${seedDate} · ${manualTalks.length} manual record${manualTalks.length === 1 ? "" : "s"}`;
 }
 
 function renderPagination(totalPages) {
@@ -667,22 +571,44 @@ document.querySelectorAll("[data-close]").forEach((b) => {
   b.addEventListener("click", () => document.getElementById(b.dataset.close).close());
 });
 
-/* Quick add dialog */
+/* Quick add / edit dialog */
 const quickAddDialog = document.getElementById("quickAddDialog");
+const quickAddTitle = document.getElementById("quickAddTitle");
 const memberSearchInput = document.getElementById("memberSearchInput");
 const memberSuggestions = document.getElementById("memberSuggestions");
 const talkDateInput = document.getElementById("talkDateInput");
+const saveTalkBtn = document.getElementById("saveTalkBtn");
+const quickAddStatus = document.getElementById("quickAddStatus");
 let selectedMember = null;
+let editingId = null;
 
 document.getElementById("quickAddBtn").addEventListener("click", () => openQuickAdd());
 
 function openQuickAdd(prefillName) {
+  editingId = null;
+  quickAddTitle.textContent = "Record a talk";
+  saveTalkBtn.textContent = "Save talk";
   selectedMember = prefillName || null;
   memberSearchInput.value = prefillName || "";
   talkDateInput.value = new Date().toISOString().slice(0, 10);
   memberSuggestions.classList.remove("open");
+  quickAddStatus.className = "form-status";
+  quickAddStatus.textContent = "";
   quickAddDialog.showModal();
   if (!prefillName) memberSearchInput.focus();
+}
+
+function openEditTalk(talk) {
+  editingId = talk.id;
+  quickAddTitle.textContent = "Edit talk";
+  saveTalkBtn.textContent = "Save changes";
+  selectedMember = talk.name;
+  memberSearchInput.value = talk.name;
+  talkDateInput.value = talk.date;
+  memberSuggestions.classList.remove("open");
+  quickAddStatus.className = "form-status";
+  quickAddStatus.textContent = "";
+  quickAddDialog.showModal();
 }
 
 memberSearchInput.addEventListener("input", () => {
@@ -705,115 +631,100 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".autocomplete")) memberSuggestions.classList.remove("open");
 });
 
-document.getElementById("saveTalkBtn").addEventListener("click", () => {
+saveTalkBtn.addEventListener("click", async () => {
   const name = selectedMember || memberSearchInput.value.trim();
   const match = MEMBER_INDEX.get(normName(name));
   if (!match) { memberSearchInput.focus(); return; }
   const date = talkDateInput.value;
   if (!date) { talkDateInput.focus(); return; }
-  manualTalks.push({ date, name: match });
-  saveJSON(LS_MANUAL_TALKS, manualTalks);
-  quickAddDialog.close();
-  render();
+
+  saveTalkBtn.disabled = true;
+  quickAddStatus.className = "form-status";
+  quickAddStatus.textContent = "Saving...";
+  try {
+    if (editingId) {
+      const updated = await apiUpdateTalk(editingId, match, date);
+      const idx = manualTalks.findIndex((t) => t.id === editingId);
+      if (idx !== -1) manualTalks[idx] = updated;
+    } else {
+      const created = await apiCreateTalk(match, date);
+      manualTalks.push(created);
+    }
+    quickAddDialog.close();
+    render();
+    renderManageList();
+  } catch (err) {
+    quickAddStatus.className = "form-status error";
+    quickAddStatus.textContent = `Couldn't save: ${err.message}`;
+  } finally {
+    saveTalkBtn.disabled = false;
+  }
 });
 
-/* Settings / sync dialog */
-const settingsDialog = document.getElementById("settingsDialog");
-const sourceRows = document.getElementById("sourceRows");
-const sourceRowTpl = document.getElementById("sourceRowTpl");
+/* Manage records dialog */
+const manageDialog = document.getElementById("manageDialog");
+const manageList = document.getElementById("manageList");
+const manageStatus = document.getElementById("manageStatus");
 
-document.getElementById("settingsBtn").addEventListener("click", () => {
-  renderSourceRows();
-  settingsDialog.showModal();
+document.getElementById("manageBtn").addEventListener("click", () => {
+  renderManageList();
+  manageDialog.showModal();
 });
+document.getElementById("manageAddBtn").addEventListener("click", () => openQuickAdd());
 
-function renderSourceRows() {
-  sourceRows.innerHTML = "";
-  if (sources.length === 0) sources = [{ url: "", dateCol: 1, speakerCols: "" }];
-  sources.forEach((src, idx) => addSourceRow(src, idx));
-}
-function addSourceRow(src, idx) {
-  const node = sourceRowTpl.content.cloneNode(true);
-  const urlInput = node.querySelector(".src-url");
-  const dateInput = node.querySelector(".src-date-col");
-  const colsInput = node.querySelector(".src-speaker-cols");
-  urlInput.value = src.url || "";
-  dateInput.value = src.dateCol || 1;
-  colsInput.value = src.speakerCols || "";
-  [urlInput, dateInput, colsInput].forEach((inp) => {
-    inp.addEventListener("change", () => {
-      sources[idx] = {
-        url: urlInput.value.trim(),
-        dateCol: +dateInput.value || 1,
-        speakerCols: colsInput.value.trim(),
-      };
-      saveJSON(LS_SOURCES, sources);
-    });
-  });
-  node.querySelector(".remove-source").addEventListener("click", () => {
-    sources.splice(idx, 1);
-    saveJSON(LS_SOURCES, sources);
-    renderSourceRows();
-  });
-  sourceRows.appendChild(node);
-}
-document.getElementById("addSourceBtn").addEventListener("click", () => {
-  sources.push({ url: "", dateCol: 1, speakerCols: "" });
-  saveJSON(LS_SOURCES, sources);
-  renderSourceRows();
-});
-
-document.getElementById("syncNowBtn").addEventListener("click", async () => {
-  const statusEl = document.getElementById("syncStatus");
-  statusEl.className = "sync-status";
-  statusEl.textContent = "Syncing...";
-  const validSources = sources.filter((s) => s.url && s.speakerCols);
-  if (validSources.length === 0) {
-    statusEl.className = "sync-status error";
-    statusEl.textContent = "Add at least one source with a CSV URL and speaker columns.";
+function renderManageList() {
+  if (manualTalks.length === 0) {
+    manageList.innerHTML = `<div class="empty-state">No manual records yet.</div>`;
     return;
   }
-  let allNewTalks = [];
-  let allUnmatched = [];
-  let errors = [];
-  for (const src of validSources) {
-    const speakerCols = src.speakerCols.split(",").map((c) => parseInt(c.trim(), 10)).filter(Boolean);
+  const sorted = manualTalks.slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+  manageList.innerHTML = sorted.map((t) => `
+    <div class="manage-row" data-id="${t.id}">
+      <span class="mr-name">${escapeHTML(t.name)}</span>
+      <span class="mr-date">${formatDate(t.date)}</span>
+      <span class="mr-actions">
+        <button class="subtle edit-record" data-id="${t.id}">Edit</button>
+        <button class="subtle delete-record" data-id="${t.id}">Delete</button>
+      </span>
+    </div>`).join("");
+}
+
+manageList.addEventListener("click", async (e) => {
+  const editBtn = e.target.closest(".edit-record");
+  if (editBtn) {
+    const talk = manualTalks.find((t) => String(t.id) === editBtn.dataset.id);
+    if (talk) openEditTalk(talk);
+    return;
+  }
+  const delBtn = e.target.closest(".delete-record");
+  if (delBtn) {
+    const id = delBtn.dataset.id;
+    const talk = manualTalks.find((t) => String(t.id) === id);
+    if (!talk || !confirm(`Delete the talk record for ${talk.name} on ${formatDate(talk.date)}?`)) return;
+    delBtn.disabled = true;
+    manageStatus.className = "form-status";
+    manageStatus.textContent = "";
     try {
-      const res = await fetch(src.url, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      const { talks, unmatched } = parseSourceCSV(text, src.dateCol, speakerCols);
-      allNewTalks = allNewTalks.concat(talks);
-      allUnmatched = allUnmatched.concat(unmatched);
+      await apiDeleteTalk(id);
+      manualTalks = manualTalks.filter((t) => String(t.id) !== id);
+      renderManageList();
+      render();
     } catch (err) {
-      errors.push(`${src.url}: ${err.message}`);
+      manageStatus.className = "form-status error";
+      manageStatus.textContent = `Couldn't delete: ${err.message}`;
+      delBtn.disabled = false;
     }
   }
-  if (allNewTalks.length > 0) {
-    syncedTalks = dedupeTalks(allNewTalks);
-    saveJSON(LS_SYNCED_TALKS, syncedTalks);
-    localStorage.setItem(LS_LAST_SYNC, new Date().toISOString());
-  }
-  const unmatchedWrap = document.getElementById("unmatchedWrap");
-  const unmatchedBox = document.getElementById("unmatchedBox");
-  const uniqueUnmatched = [...new Set(allUnmatched)].sort();
-  if (uniqueUnmatched.length > 0) {
-    unmatchedWrap.style.display = "";
-    unmatchedBox.textContent = uniqueUnmatched.join(", ");
-  } else {
-    unmatchedWrap.style.display = "none";
-  }
-  if (errors.length > 0) {
-    statusEl.className = "sync-status error";
-    statusEl.textContent = `Synced with errors: ${errors.join(" | ")}`;
-  } else {
-    statusEl.className = "sync-status ok";
-    statusEl.textContent = `Synced ${allNewTalks.length} talk record(s) from ${validSources.length} source(s). If your CSV link fails to load here, double-check it's published (not just shared) and reachable without sign-in.`;
-  }
-  render();
 });
 
+/* ---------- Init ---------- */
 render();
+apiListTalks()
+  .then((talks) => { manualTalks = talks; })
+  .catch(() => {
+    document.getElementById("dataLine").textContent = "Couldn't load shared records — check your connection and reload.";
+  })
+  .finally(() => { render(); renderManageList(); });
 </script>
 </body>
 </html>

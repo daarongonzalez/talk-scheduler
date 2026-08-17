@@ -1,8 +1,9 @@
 # talk-scheduler
 
-A single-page dashboard for tracking who's given a Sunday sacrament meeting
-talk and who's due for one. Open `index.html` directly, or host it on
-GitHub Pages.
+A dashboard for tracking who's given a Sunday sacrament meeting talk and
+who's due for one: a static `index.html` frontend plus a small Cloudflare
+Worker (`worker/index.js`) backed by D1, so records are shared identically
+across all three ward leaders instead of living in one browser's storage.
 
 ## What it does
 
@@ -12,17 +13,23 @@ GitHub Pages.
   **green** if they're due (12+ months, or never).
 - Search by name, filter to "spoke recently" / "due" / "never spoken", and
   paginate.
-- **Record a talk** lets any of the three of you log a talk on the spot
-  (stored in that browser's local storage).
-- **Sync settings** lets you connect one or more Google Sheet tabs
-  (published to the web as CSV) so the page can pull speaker history
-  straight from the sheet you already use. In Google Sheets:
-  `File → Share → Publish to web`, pick the tab, choose CSV, and paste the
-  link in. Columns are 1-indexed (A=1, H=8, I=9, J=10, K=11...).
+- **Record a talk** / **Manage records** let any of the three of you add,
+  edit, or delete a talk record. These are stored in a shared Cloudflare
+  D1 database via the `/api/talks` endpoint (see `worker/index.js`), so
+  what one leader enters shows up identically for the other two — nothing
+  is kept in browser local storage.
+- Historical/seeded talk data (`SEED_TALKS` in `index.html`) is baked in
+  from the ward's published meeting-schedule sheet. It's a snapshot, not
+  a live sync: when the sheet changes, send an updated CSV export and
+  ask for the seed data to be refreshed and redeployed. (A live
+  publish-to-web CSV link was attempted but isn't working yet — once
+  there's a working one, auto-fetching it on page load is a small,
+  self-contained change.)
 
-The page ships with speaker history already seeded from the data provided
-when this was built, so it's useful immediately — connecting a live sheet
-is optional, for keeping it current going forward.
+Because manual records live behind `/api/talks`, opening `index.html`
+directly (`file://`) will show the seeded history but "Record a talk" /
+"Manage records" won't work — run it via `wrangler dev` or the deployed
+Worker for full functionality.
 
 ## Hosting on Cloudflare Workers
 
@@ -42,3 +49,14 @@ One-time setup in the Cloudflare dashboard (not scriptable from here):
    **One-time PIN** as the login method.
 3. **Create the Access policy** — Allow action, include rule: Emails,
    listing the three ward leaders who should have access.
+
+The D1 database (`talk-scheduler-db`, bound as `DB`) already exists and
+is wired up in `wrangler.jsonc`; Workers Builds provisions it on deploy,
+no extra dashboard step needed.
+
+## Local development
+
+```
+npx wrangler d1 execute talk-scheduler-db --local --command "CREATE TABLE IF NOT EXISTS talks (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));"
+npx wrangler dev
+```
